@@ -136,6 +136,49 @@ textarea {
   padding: 10px 14px;
 }
 
+.upload {
+  display: grid;
+  gap: 8px;
+}
+
+.upload-label {
+  color: #5c655b;
+  font-size: 0.86rem;
+}
+
+.upload-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.upload-hint {
+  color: #828a80;
+  font-size: 0.78rem;
+}
+
+.preview {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.preview img {
+  border: 1px solid #dde1d9;
+  border-radius: 6px;
+  max-height: 120px;
+  max-width: 160px;
+  object-fit: cover;
+}
+
+.form-error {
+  color: #a33c2e;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+
 .ghost {
   background: #e9eee6;
   border-radius: 6px;

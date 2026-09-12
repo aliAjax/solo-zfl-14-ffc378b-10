@@ -14,7 +14,12 @@ const priorities = {
   low: "低优先级"
 };
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_IMAGE_SIDE = 1280;
+const JPEG_QUALITY = 0.82;
+
 let state = loadState();
+let uploadedPhoto = "";
 const app = document.querySelector("#app");
 
 function loadState() {
@@ -71,6 +76,19 @@ function render() {
             <label>预计费用<input name="cost" type="number" min="0" step="1" value="0"></label>
             <label>处理状态<select name="status">${renderStatusOptions("todo")}</select></label>
             <label>照片链接<input name="photo" type="url" placeholder="可选，粘贴图片地址"></label>
+            <div class="upload">
+              <span class="upload-label">本地图片</span>
+              <input type="file" id="photo-file" accept="image/*" hidden>
+              <div class="upload-row">
+                <button type="button" class="ghost" id="photo-pick">选择图片</button>
+                <span class="upload-hint">5 MB 以内，自动压缩；与照片链接二选一，本地图片优先</span>
+              </div>
+              <div class="preview" id="photo-preview" hidden>
+                <img id="photo-preview-img" alt="本地图片预览">
+                <button type="button" class="ghost" id="photo-clear">移除</button>
+              </div>
+              <p class="form-error" id="photo-error" hidden></p>
+            </div>
             <label>备注<textarea name="note" placeholder="师傅电话、材料或注意事项"></textarea></label>
             <button class="primary" type="submit">保存事项</button>
           </form>
@@ -139,12 +157,15 @@ function bindEvents() {
       priority: data.priority,
       cost: Number(data.cost || 0),
       status: data.status,
-      photo: data.photo.trim(),
+      photo: uploadedPhoto || data.photo.trim(),
       note: data.note.trim()
     });
+    uploadedPhoto = "";
     saveState();
     render();
   });
+
+  bindPhotoUpload();
 
   document.querySelectorAll("[data-filter]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -169,6 +190,82 @@ function bindEvents() {
       saveState();
       render();
     });
+  });
+}
+
+function bindPhotoUpload() {
+  const fileInput = document.querySelector("#photo-file");
+  const preview = document.querySelector("#photo-preview");
+  const previewImg = document.querySelector("#photo-preview-img");
+  const error = document.querySelector("#photo-error");
+
+  const showError = (message) => {
+    error.textContent = message;
+    error.hidden = !message;
+  };
+
+  const syncPreview = () => {
+    preview.hidden = !uploadedPhoto;
+    if (uploadedPhoto) previewImg.src = uploadedPhoto;
+  };
+
+  syncPreview();
+
+  document.querySelector("#photo-pick").addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    fileInput.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showError("只能选择图片文件，已保留原内容");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      showError("图片不能超过 5 MB，已保留原内容");
+      return;
+    }
+    compressImage(file)
+      .then((dataUrl) => {
+        uploadedPhoto = dataUrl;
+        showError("");
+        syncPreview();
+      })
+      .catch(() => showError("图片读取失败，请换一张试试"));
+  });
+
+  document.querySelector("#photo-clear").addEventListener("click", () => {
+    uploadedPhoto = "";
+    showError("");
+    syncPreview();
+  });
+}
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { naturalWidth: width, naturalHeight: height } = img;
+      if (!width || !height) {
+        reject(new Error("empty image"));
+        return;
+      }
+      const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("cannot decode image"));
+    };
+    img.src = url;
   });
 }
 
