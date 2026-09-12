@@ -43,7 +43,13 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (error) {
+    console.error("写入 localStorage 失败", error);
+    return false;
+  }
 }
 
 function render() {
@@ -90,6 +96,7 @@ function render() {
               <p class="form-error" id="photo-error" hidden></p>
             </div>
             <label>备注<textarea name="note" placeholder="师傅电话、材料或注意事项"></textarea></label>
+            <p class="form-error" id="save-error" hidden></p>
             <button class="primary" type="submit">保存事项</button>
           </form>
         </aside>
@@ -149,6 +156,8 @@ function renderPriorityOptions(selected) {
 function bindEvents() {
   document.querySelector("#repair-form").addEventListener("submit", (event) => {
     event.preventDefault();
+    const saveError = document.querySelector("#save-error");
+    saveError.hidden = true;
     const data = Object.fromEntries(new FormData(event.target));
     state.repairs.unshift({
       id: crypto.randomUUID(),
@@ -160,8 +169,13 @@ function bindEvents() {
       photo: uploadedPhoto || data.photo.trim(),
       note: data.note.trim()
     });
+    if (!saveState()) {
+      state.repairs.shift();
+      saveError.textContent = "存储空间已满，本次未保存，已有数据未受影响；可删除部分事项或改用照片链接后重试";
+      saveError.hidden = false;
+      return;
+    }
     uploadedPhoto = "";
-    saveState();
     render();
   });
 
